@@ -13,18 +13,39 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-class User(db.Model):
+class User(db.Model):   #type:ignore
     id = db.Column(db.Integer, primary_key = True)
     public_id = db.Column(db.String(50), unique = True)
     name = db.Column(db.String(50))
     password = db.Column(db.String(80))
     admin = db.Column(db.Boolean)
 
-class Todo(db.Model):
+class Todo(db.Model):  #type:ignore
     id = db.Column(db.Integer, primary_key = True)
     text = db.Column(db.String(50))
     complete = db.Column(db.Boolean)
     user_id = db.Column(db.Integer)
+
+    
+# error handling for Bad Request (400)
+@app.errorhandler(400)
+def handle_400_error(_error):
+    return make_response(jsonify({"error" : "VERY VERY BAD REQUEST"}), 400)
+
+# error handling for Not Found (404)
+@app.errorhandler(404)
+def handle_404_error(_error):
+    return make_response(jsonify({"error" : "THERE IS NOTHING TO SEE!!"}), 404)
+    
+# error handling for Method Not Allowed (405)
+@app.errorhandler(405)
+def handle_405_error(_error):
+    return make_response(jsonify({"error" : "THIS METHOD IS NOT ALLOWED"}), 405)
+
+@app.errorhandler(500)
+def handle_500_error(_error):
+    return make_response(jsonify({"error" : "INTERNAL SERVER ERROR"}), 500)    
+
 
 def token_required(f):
     @wraps(f)
@@ -95,7 +116,10 @@ def create_user(current_user):
     if not current_user.admin:
         return jsonify({'message' : 'you are not allowed to do this'}), 401
 
-    data = request.get_json()
+    if request is None:
+        data = request.get_json()
+    else:
+        return(make_response(jsonify({"error" : "NO DATA FOUND"}), 400))
 
     hashed_password = generate_password_hash(data["password"], method = "sha256")
 
@@ -193,7 +217,10 @@ def get_one_todo(current_user, todo_id):
 @app.route('/todo', methods = ['POST'])
 @token_required
 def create_todo(current_user):
-    data = request.get_json()
+    if request is None:
+        data = request.get_json()
+    else:
+        return make_response(jsonify({'error' : 'NO DATA FOUND'}), 400)
 
     new_todo = Todo(text = data['text'], complete = False, user_id = current_user.id)
     db.session.add(new_todo)
