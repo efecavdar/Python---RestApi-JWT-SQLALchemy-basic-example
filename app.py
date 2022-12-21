@@ -1,3 +1,4 @@
+# importing libraries
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 import uuid
@@ -6,13 +7,16 @@ import jwt
 import datetime
 from functools import wraps
 
+# Configuration for flask and sqlalchemy
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "supersecret"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Define the database
 db = SQLAlchemy(app)
 
+# For User table in database
 class User(db.Model):   #type:ignore
     id = db.Column(db.Integer, primary_key = True)
     public_id = db.Column(db.String(50), unique = True)
@@ -20,6 +24,7 @@ class User(db.Model):   #type:ignore
     password = db.Column(db.String(80))
     admin = db.Column(db.Boolean)
 
+# For todo table in database
 class Todo(db.Model):  #type:ignore
     id = db.Column(db.Integer, primary_key = True)
     text = db.Column(db.String(50))
@@ -46,7 +51,7 @@ def handle_405_error(_error):
 def handle_500_error(_error):
     return make_response(jsonify({"error" : "INTERNAL SERVER ERROR"}), 500)    
 
-
+# For Json Web Token Authentication
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -68,6 +73,7 @@ def token_required(f):
 
     return decorated
 
+# Getting all user list from database (only admin can do this)
 @app.route("/user", methods = ["GET"])
 @token_required
 def get_all_users(current_user):
@@ -89,6 +95,7 @@ def get_all_users(current_user):
 
     return jsonify({"users" : output })
 
+# Getting one user from database with public_id (only admin can do this)
 @app.route("/user/<public_id>", methods = ["GET"])
 @token_required
 def get_one_user(current_user, public_id):
@@ -109,6 +116,7 @@ def get_one_user(current_user, public_id):
     
     return jsonify({"user" : user_data})
 
+# Creating a new user (only admin can do this)
 @app.route("/user", methods = ["POST"])
 @token_required
 def create_user(current_user):
@@ -129,6 +137,7 @@ def create_user(current_user):
 
     return jsonify({"message" : "New user created"})
 
+# Updating/promoting users (only admin can do this)
 @app.route("/user/<public_id>", methods = ["PUT"])
 @token_required
 def promote_user(current_user, public_id):
@@ -141,11 +150,13 @@ def promote_user(current_user, public_id):
     if not user:
         return jsonify({"error": "No user found"}), 404
 
+    # Promoted
     user.admin = True
     db.session.commit()
 
     return jsonify({"message" : "User has been promoted"})
 
+# Delete a user from the database
 @app.route("/user/<public_id>", methods = ["DELETE"])
 @token_required
 def delete_user(current_user, public_id):
@@ -163,6 +174,7 @@ def delete_user(current_user, public_id):
     
     return jsonify({"message" : "User has been deleted"})
 
+# Login route for api (Basic Authentication)
 @app.route("/login")
 def login():
     auth = request.authorization
@@ -182,6 +194,7 @@ def login():
 
     return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm = "Login required!"'})
 
+# Get all todos from the database
 @app.route('/todo', methods = ['GET'])
 @token_required
 def get_all_todos(current_user):
@@ -198,6 +211,7 @@ def get_all_todos(current_user):
 
     return jsonify({"todos" : output})
 
+# Get one todo from database
 @app.route('/todo/<todo_id>', methods = ['GET'])
 @token_required
 def get_one_todo(current_user, todo_id):
@@ -213,7 +227,7 @@ def get_one_todo(current_user, todo_id):
 
     return jsonify(todo_data)
     
-
+# Creating a new todo 
 @app.route('/todo', methods = ['POST'])
 @token_required
 def create_todo(current_user):
@@ -228,6 +242,7 @@ def create_todo(current_user):
 
     return jsonify({'message' : 'todo created!!'})
 
+# Updating the todo for completed tasks
 @app.route('/todo/<todo_id>', methods = ['PUT'])
 @token_required
 def complete_todo(current_user, todo_id):
@@ -241,6 +256,7 @@ def complete_todo(current_user, todo_id):
 
     return jsonify({'message' : 'todo has been completed!!'})
 
+# Delete a specific todo from the database
 @app.route('/todo/<todo_id>', methods = ['DELETE'])
 @token_required
 def delete_todo(current_user, todo_id):
@@ -254,5 +270,6 @@ def delete_todo(current_user, todo_id):
 
     return jsonify({'message' : 'todo has been deleted!!'})
 
+# Run the app
 if __name__ == "__main__":
     app.run(debug = True, port = 2020)
